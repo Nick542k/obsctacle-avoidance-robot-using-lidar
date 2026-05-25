@@ -1,0 +1,285 @@
+<?xml version="1.0"?>
+
+<robot name="differential_drive_robot"
+       xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <!-- PARAMETERS -->
+
+    <xacro:property name="body_link_x_dim" value="1.0"/>
+    <xacro:property name="body_link_y_dim" value="0.6"/>
+    <xacro:property name="body_link_z_dim" value="0.2"/>
+
+    <xacro:property name="wheel_link_radius" value="0.15"/>
+    <xacro:property name="wheel_link_length" value="0.1"/>
+    <xacro:property name="wheel_link_z_location" value="-0.1"/>
+
+    <xacro:property name="body_density" value="2710.0"/>
+    <xacro:property name="wheel_density" value="2710.0"/>
+
+    <xacro:property name="pi_const" value="3.14159265"/>
+
+    <!-- MASS -->
+
+    <xacro:property
+        name="body_mass"
+        value="${body_density * body_link_x_dim * body_link_y_dim * body_link_z_dim}"/>
+
+    <xacro:property
+        name="wheel_mass"
+        value="${wheel_density * pi_const * wheel_link_radius * wheel_link_radius * wheel_link_length}"/>
+
+    <!-- WHEEL INERTIA -->
+
+    <xacro:property
+        name="Iz_wheel"
+        value="${0.5 * wheel_mass * wheel_link_radius * wheel_link_radius}"/>
+
+    <xacro:property
+        name="I_wheel"
+        value="${(1.0/12.0) * wheel_mass * (3.0 * wheel_link_radius * wheel_link_radius + wheel_link_length * wheel_link_length)}"/>
+
+    <!-- GAZEBO INCLUDE -->
+
+    <xacro:include filename="$(find mobile_robot)/model/robot.gazebo"/>
+
+    <!-- WHEEL INERTIA MACRO -->
+
+    <xacro:macro name="inertial_wheel">
+
+        <inertial>
+
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+
+            <mass value="${wheel_mass}"/>
+
+            <inertia
+                ixx="${I_wheel}"
+                ixy="0.0"
+                ixz="0.0"
+                iyy="${I_wheel}"
+                iyz="0.0"
+                izz="${Iz_wheel}"/>
+
+        </inertial>
+
+    </xacro:macro>
+
+    <!-- DUMMY LINK -->
+
+    <link name="dummy"/>
+
+    <joint name="dummy_joint" type="fixed">
+
+        <parent link="dummy"/>
+        <child link="body_link"/>
+
+    </joint>
+
+    <!-- BODY LINK -->
+
+    <link name="body_link">
+
+        <visual>
+            <geometry>
+                <box size="${body_link_x_dim}
+                           ${body_link_y_dim}
+                           ${body_link_z_dim}"/>
+            </geometry>
+        </visual>
+
+        <collision>
+
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+
+            <geometry>
+                <box size="${body_link_x_dim}
+                           ${body_link_y_dim}
+                           ${body_link_z_dim}"/>
+            </geometry>
+
+        </collision>
+
+        <inertial>
+
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+
+            <mass value="${body_mass}"/>
+
+            <inertia
+                ixx="${(1.0/12.0)*body_mass*(body_link_y_dim*body_link_y_dim + body_link_z_dim*body_link_z_dim)}"
+                ixy="0.0"
+                ixz="0.0"
+                iyy="${(1.0/12.0)*body_mass*(body_link_x_dim*body_link_x_dim + body_link_z_dim*body_link_z_dim)}"
+                iyz="0.0"
+                izz="${(1.0/12.0)*body_mass*(body_link_x_dim*body_link_x_dim + body_link_y_dim*body_link_y_dim)}"/>
+
+        </inertial>
+
+    </link>
+
+    <!-- WHEEL MACRO -->
+
+    <xacro:macro name="wheel" params="name x y">
+
+        <joint name="${name}_joint" type="continuous">
+
+            <parent link="body_link"/>
+            <child link="${name}_link"/>
+
+            <origin xyz="${x} ${y} ${wheel_link_z_location}"
+                    rpy="0 0 0"/>
+
+            <axis xyz="0 1 0"/>
+
+            <limit effort="1000" velocity="1000"/>
+
+            <dynamics damping="1.0"
+                      friction="1.0"/>
+
+        </joint>
+
+        <link name="${name}_link">
+
+            <visual>
+
+                <origin xyz="0 0 0"
+                        rpy="1.570795 0 0"/>
+
+                <geometry>
+                    <cylinder length="${wheel_link_length}"
+                              radius="${wheel_link_radius}"/>
+                </geometry>
+
+            </visual>
+
+            <collision>
+
+                <origin xyz="0 0 0"
+                        rpy="1.570795 0 0"/>
+
+                <geometry>
+                    <cylinder length="${wheel_link_length}"
+                              radius="${wheel_link_radius}"/>
+                </geometry>
+
+            </collision>
+
+            <xacro:inertial_wheel/>
+
+        </link>
+
+    </xacro:macro>
+
+    <!-- FOUR WHEELS -->
+
+    <xacro:wheel
+        name="wheel1"
+        x="0.35"
+        y="-0.35"/>
+
+    <xacro:wheel
+        name="wheel2"
+        x="0.35"
+        y="0.35"/>
+
+    <xacro:wheel
+        name="wheel3"
+        x="-0.35"
+        y="-0.35"/>
+
+    <xacro:wheel
+        name="wheel4"
+        x="-0.35"
+        y="0.35"/>
+
+    <!-- ════════════════════════════════════════════════════
+         LIDAR MOUNT POLE
+         Fixed to the top-centre of body_link.
+         Pole sits on top surface (body_link_z_dim/2),
+         rises 0.05 m, so its centre is at +0.025 m above
+         the chassis top.
+    ════════════════════════════════════════════════════ -->
+
+
+
+    <link name="lidar_pole_link">
+
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="0.02" length="0.05"/>
+            </geometry>
+            <material name="dark_grey">
+                <color rgba="0.3 0.3 0.3 1.0"/>
+            </material>
+        </visual>
+
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="0.02" length="0.05"/>
+            </geometry>
+        </collision>
+
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value="0.05"/>
+            <inertia ixx="0.000054" ixy="0" ixz="0"
+                     iyy="0.000054" iyz="0"
+                     izz="0.000010"/>
+        </inertial>
+
+    </link>
+
+    <joint name="lidar_pole_joint" type="fixed">
+        <parent link="body_link"/>
+        <child  link="lidar_pole_link"/>
+        <!-- Centre of pole = chassis top + half pole height -->
+        <origin xyz="0 0 ${body_link_z_dim/2 + 0.025}" rpy="0 0 0"/>
+    </joint>
+
+    <!-- ════════════════════════════════════════════════════
+         LIDAR SENSOR LINK
+         Sits on top of the pole.  The ray sensor origin is
+         at the centre of this cylinder.
+    ════════════════════════════════════════════════════ -->
+
+    
+
+    <link name="lidar_link">
+
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="0.05" length="0.06"/>
+            </geometry>
+            <material name="lidar_black">
+                <color rgba="0.05 0.05 0.05 1.0"/>
+            </material>
+        </visual>
+
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="0.05" length="0.06"/>
+            </geometry>
+        </collision>
+
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value="0.18"/>
+            <inertia ixx="0.000413" ixy="0" ixz="0"
+                     iyy="0.000413" iyz="0"
+                     izz="0.000225"/>
+        </inertial>
+
+    </link>
+
+    <joint name="lidar_joint" type="fixed">
+        <parent link="lidar_pole_link"/>
+        <child  link="lidar_link"/>
+        <!-- Centre of sensor = top of pole + half sensor height -->
+        <origin xyz="0 0 ${0.025 + 0.03}" rpy="0 0 0"/>
+    </joint>
+
+</robot>
